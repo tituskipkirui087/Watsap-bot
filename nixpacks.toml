@@ -1,0 +1,2 @@
+[phases.setup]
+nixPkgs = ["chromium", "glibc", "glib", "nss", "atk", "gtk3", "pango", "cairo", "gdk-pixbuf", "libx11", "libxcomposite", "libxcursor", "libxdamage", "libxext", "libxfixes", "libxi", "libxrandr", "libxrender", "libxss", "libxtst", "cups", "libasound2", "libpangocairo-1.0-0", "libatk1.0-0", "libcairo-gobject2", "libgtk-3-0", "libgdk-pixbuf2.0-0", "libdrm", "libxkbcommon", "libgbm", "libatspi2.0-0", "libxss1"]
