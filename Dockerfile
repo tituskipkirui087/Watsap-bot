@@ -13,6 +13,14 @@ RUN apt-get update && apt-get install -y \
     libgbm1 \
     libxss1 \
     libasound2 \
+    libcups2 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxcb-dri3-0 \
+    libxcb-shm0 \
+    libxcb1 \
+    libxss1 \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
