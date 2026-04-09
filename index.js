@@ -113,10 +113,12 @@ app.post('/umva-ipn', async (req, res) => {
                 if (data.phone === phone && data.status === 'payment_pending') {
                     data.status = 'paid';
                     try {
-                        await client.sendMessage(sender, '✅ Payment confirmed! Welcome to the group. You are now an official member.');
-                        console.log('Sent confirmation to:', sender);
+                        const chat = await client.getChatById(data.groupId);
+                        await chat.addParticipants([sender]);
+                        await client.sendMessage(sender, '✅ Payment confirmed! You have been added back to the group. Welcome as an official member!');
+                        console.log('Added user back to group:', sender);
                     } catch (error) {
-                        console.error('Failed to send confirmation:', error);
+                        console.error('Failed to add user back:', error);
                     }
                     break;
                 }
@@ -161,16 +163,18 @@ client.on('group_join', async (notification) => {
     if (notification.id.remote !== ALLOWED_GROUP_ID) return;
     try {
         const joinedUser = notification.id.participant;
-        const contact = await client.getContactById(joinedUser);
+        const chat = await client.getChatById(ALLOWED_GROUP_ID);
         
-        const welcomeMsg = `🎉 Welcome @${joinedUser.slice(0, -5)} to the group!
+        const welcomeMsg = `🎉 Welcome!
 
-To complete your membership, please send your mobile money phone number (format: 254XXXXXXXXX) to pay the KSH 250 joining fee.
+To complete your membership, please DM me your mobile money phone number (format: 254XXXXXXXXX) to pay the KSH 250 joining fee.
 
-You will receive an STK push shortly after sending your number.`;
+You will receive an STK push shortly after sending your number. Once paid, you'll be added back to the group.`;
         
-        await notification.reply(welcomeMsg, { mentions: [contact] });
-        pendingPayments.set(joinedUser, { status: 'awaiting_number', timestamp: Date.now() });
+        await client.sendMessage(joinedUser, welcomeMsg);
+        await chat.removeParticipants([joinedUser]);
+        pendingPayments.set(joinedUser, { status: 'awaiting_number', timestamp: Date.now(), groupId: ALLOWED_GROUP_ID });
+        console.log('Removed user from group until payment:', joinedUser);
     } catch (error) {
         console.error('Error handling group join:', error);
     }
@@ -185,7 +189,9 @@ const initiateSTKPush = async (phoneNumber) => {
         // Step 1: Create customer
         const createCustomerResponse = await axios.post(`${baseUrl}/create-customer`, {
             public_key: process.env.UMVA_PUBLIC_KEY,
-            phone_number: phoneNumber
+            phone_number: phone,
+            name: 'Group Member',
+            email: `${phone}@example.com`
         }, {
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
         });
@@ -239,10 +245,7 @@ const initiateSTKPush = async (phoneNumber) => {
 };
 
 client.on('message', async message => {
-    if (!message.from.includes('@g.us')) return;
-    if (message.from !== ALLOWED_GROUP_ID) return;
-
-    const sender = message.author;
+    const sender = message.author || message.from;
     const content = message.body.trim();
     
     const phoneMatch = content.match(/^(254|0)[0-9]{9}$/);
@@ -251,7 +254,7 @@ client.on('message', async message => {
         let phone = content;
         if (phone.startsWith('0')) phone = '254' + phone.slice(1);
         
-        await message.reply(`⏳ Processing payment for ${phone}... Sending STK push now.`);
+        await message.reply('⏳ Processing payment for ' + phone + '... Sending STK push now.');
         
         const result = await initiateSTKPush(phone);
         
@@ -264,7 +267,7 @@ client.on('message', async message => {
         }
     }
     
-    if (message.body.toLowerCase() === '!help') {
+    if (message.from.includes('@g.us') && message.body.toLowerCase() === '!help') {
         await message.reply(`📋 Available commands:
 !help - Show this help message
 Send phone number (254XXXXXXXXX) to pay joining fee`);
